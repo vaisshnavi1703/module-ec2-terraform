@@ -29,7 +29,7 @@ data "aws_key_pair" "example_key" {
 }
 
 resource "aws_security_group" "de" {
-  name        = "de"
+  name        = "de-new-unique-name"
   description = "Security group for EC2"
   vpc_id      = data.aws_vpc.default.id
 
