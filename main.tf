@@ -61,7 +61,7 @@ resource "aws_security_group" "de" {
 
 module "example_ec2" {
   source             = "./modules/ec2"
-  ami                = "ami-084568db4383264d4"
+  ami                = "ami-0953476d60561c955"
   instance_type      = "t2.micro"
   subnet_id          = element(data.aws_subnets.default.ids, 0)
   security_group_ids = [aws_security_group.de.id]
