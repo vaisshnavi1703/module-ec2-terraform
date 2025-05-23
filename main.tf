@@ -2,86 +2,36 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
+      version = "~> 4.0"
     }
   }
+  required_version = ">= 1.5.0"
 }
 
 provider "aws" {
-  region     = "us-east-1"
-  access_key = var.AWS_ACCESS_KEY_ID
-  secret_key = var.AWS_SECRET_ACCESS_KEY
+  region = "us-east-1"
 }
 
-variable "AWS_ACCESS_KEY_ID" {
-  type        = string
-  description = "Your AWS access key"
+# Use default VPC
+data "aws_vpc" "default" {
+  default = true
 }
 
-variable "AWS_SECRET_ACCESS_KEY" {
-  type        = string
-  description = "Your AWS secret key"
-}
-
-resource "random_id" "sg_suffix" {
-  byte_length = 4
-}
-
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = {
-    Name = "main-vpc"
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
   }
 }
 
-resource "aws_subnet" "main" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "main-subnet"
-  }
-}
-
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "main-igw"
-  }
-}
-
-resource "aws_route_table" "main" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-
-  tags = {
-    Name = "main-route-table"
-  }
-}
-
-resource "aws_route_table_association" "main" {
-  subnet_id      = aws_subnet.main.id
-  route_table_id = aws_route_table.main.id
+data "aws_key_pair" "example_key" {
+  key_name = "example-key"
 }
 
 resource "aws_security_group" "de" {
-  name        = "de-${random_id.sg_suffix.hex}"
-  description = "Allow SSH and HTTP"
-  vpc_id      = aws_vpc.main.id
+  name        = "de"
+  description = "Security group for EC2"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
     from_port   = 22
@@ -105,17 +55,16 @@ resource "aws_security_group" "de" {
   }
 
   tags = {
-    Name = "de-${random_id.sg_suffix.hex}"
+    Name = "de"
   }
 }
 
-resource "aws_instance" "web" {
-  ami                    = "ami-0c02fb55956c7d316"
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.main.id
-  vpc_security_group_ids = [aws_security_group.de.id]
-
-  tags = {
-    Name = "web-instance"
-  }
+module "example_ec2" {
+  source             = "./modules/ec2"
+  ami                = "ami-084568db4383264d4"
+  instance_type      = "t2.micro"
+  subnet_id          = element(data.aws_subnets.default.ids, 0)
+  security_group_ids = [aws_security_group.de.id]
+  key_name           = data.aws_key_pair.example_key.key_name
+  instance_name      = "example-ec21-instance"
 }
