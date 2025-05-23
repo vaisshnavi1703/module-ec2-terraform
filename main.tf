@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 4.0"
     }
+    random = {
+      source = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
   required_version = ">= 1.5.0"
 }
@@ -28,8 +32,12 @@ data "aws_key_pair" "example_key" {
   key_name = "example-key"
 }
 
+resource "random_id" "sg_suffix" {
+  byte_length = 4
+}
+
 resource "aws_security_group" "de" {
-  name        = "de"
+  name        = "de-${random_id.sg_suffix.hex}"
   description = "Security group for EC2"
   vpc_id      = data.aws_vpc.default.id
 
@@ -61,7 +69,7 @@ resource "aws_security_group" "de" {
 
 module "example_ec2" {
   source             = "./modules/ec2"
-  ami                = "ami-0953476d60561c955"
+  ami                = "ami-084568db4383264d4"
   instance_type      = "t2.micro"
   subnet_id          = element(data.aws_subnets.default.ids, 0)
   security_group_ids = [aws_security_group.de.id]
